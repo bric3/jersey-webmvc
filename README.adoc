@@ -4,6 +4,7 @@
 
 In the current code if the Jersey component is active (with the `jersey`
 profile) then all Spring Web MVC endpoint are not available anymore.
+Run tests in `com.github.bric3.jerseywebmvc.JerseyWebmvcApplicationTests`.
 
 .without `jersey` profile
 . `GET /jaxrs` => `404 Not Found` but Jersey is not active
