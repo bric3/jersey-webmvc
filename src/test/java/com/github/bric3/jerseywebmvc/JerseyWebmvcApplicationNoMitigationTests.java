@@ -15,9 +15,9 @@ import static org.hamcrest.Matchers.containsString;
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT,
                 classes = JerseyWebmvcApplication.class)
-@ActiveProfiles(profiles = {"jersey", "servlet-filter-mitigation"})
+@ActiveProfiles(profiles = {"jersey"})
 @AutoConfigureWebTestClient
-public class JerseyWebmvcApplicationTests {
+public class JerseyWebmvcApplicationNoMitigationTests {
 
     @Autowired
     private WebTestClient webClient;
