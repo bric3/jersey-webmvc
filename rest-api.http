@@ -1,0 +1,17 @@
+
+# curl -v localhost:12000/actuator/status
+GET localhost:12000/actuator/status
+
+###
+
+GET localhost:12000/doc/index.html
+
+###
+
+GET localhost:12000/jaxrs/
+
+###
+
+GET localhost:12000/favicon.ico
+
+###

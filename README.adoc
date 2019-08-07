@@ -1,0 +1,24 @@
+= Demo the unability of spring Boot to make Jersey and Spring WebMVC
+
+:url-sb-17523: https://github.com/spring-projects/spring-boot/issues/17523
+
+In the current code if the Jersey component is active (with the `jersey`
+profile) then all Spring Web MVC endpoint are not available anymore.
+
+.without `jersey` profile
+. `GET /jaxrs` => `404 Not Found` but Jersey is not active
+. `GET /actuator/status` => `200 OK`
+. `GET /favicon.ico` => `200 OK`
+. `GET /doc/` => `200 OK`
+. `GET /doc/index.html` => `200 OK`
+. `GET /rest/` => `200 OK`
+
+.with `jersey` profile
+. `GET /jaxrs` => `200 OK`
+. `GET /actuator/status` => `404 Not Found`
+. `GET /favicon.ico` => `404 Not Found`
+. `GET /doc/` => `404 Not Found`
+. `GET /doc/index.html` => `404 Not Found`
+. `GET /rest/` => `404 Not Found`
+
+{url-sb-17523}[spring-projects/spring-boot#17523]
