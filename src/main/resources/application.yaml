@@ -1,3 +1,10 @@
+spring:
+  mvc:
+    enforced-prefixes:
+      - /actuator
+      - /doc
+      - /rest
+      - /favicon.ico
 
 
 management:

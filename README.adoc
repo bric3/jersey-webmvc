@@ -3,7 +3,8 @@
 :url-sb-17523: https://github.com/spring-projects/spring-boot/issues/17523
 
 In the current code if the Jersey component is active (with the `jersey`
-profile) then all Spring Web MVC endpoint are not available anymore.
+profile) then all Spring Web MVC endpoint are not available anymore, if both are
+using the same root `/`.
 Run tests in `com.github.bric3.jerseywebmvc.JerseyWebmvcApplicationTests`.
 
 .without `jersey` profile
@@ -22,4 +23,24 @@ Run tests in `com.github.bric3.jerseywebmvc.JerseyWebmvcApplicationTests`.
 . `GET /doc/index.html` => `404 Not Found`
 . `GET /rest/` => `404 Not Found`
 
-{url-sb-17523}[spring-projects/spring-boot#17523]
+See {url-sb-17523}[spring-projects/spring-boot#17523].
+
+
+== Workarounds
+
+=== Servlet filter mitigation
+
+Using the filter from this {url-sb-17523}[issue]. And configuring this filter
+with the right prefixes work.
+
+.with `jersey` and `filter-mitigation` profiles
+. `GET /jaxrs` => `200 OK`
+. `GET /actuator/status` => `200 OK`
+. `GET /favicon.ico` => `200 OK`
+. `GET /doc/` => `404 Not Found` it doesn't work because when Spring MVC
+forwards the request it aks the container, however the request is forwarded to
+the Jersey servlet.
+. `GET /doc/index.html` => `200 OK`
+. `GET /rest/` => `200 OK`
+
+
