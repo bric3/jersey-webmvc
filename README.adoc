@@ -1,6 +1,26 @@
 = Demo the unability of spring Boot to make Jersey and Spring WebMVC
-
+:icons: font
 :url-sb-17523: https://github.com/spring-projects/spring-boot/issues/17523
+:servlet-filter-mitigation: https://github.com/bric3/jersey-webmvc/blob/master/src/main/java/com/github/bric3/jerseywebmvc/servlet_filter_mitigation/SpringMvcPrefixEnforcerFilter.java
+:spring-config-mitigation: https://github.com/bric3/jersey-webmvc/blob/master/src/main/java/com/github/bric3/jerseywebmvc/spring_configuration_mitigation/SpringWebMvcHackConfiguration.java
+
+:res-get-rd: https://github.com/spring-projects/spring-framework/blob/5.1.x/spring-webmvc/src/main/java/org/springframework/web/servlet/view/InternalResourceView.java#L149-L150
+:res-rd-forward: https://github.com/spring-projects/spring-framework/blob/5.0.x/spring-webmvc/src/main/java/org/springframework/web/servlet/view/InternalResourceView.java#L170
+:dispatcher-autoconf: https://github.com/spring-projects/spring-boot/blob/2.1.x/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/web/servlet/DispatcherServletAutoConfiguration.java
+:dispatcher-reg-bean: https://github.com/spring-projects/spring-boot/blob/2.1.x/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/web/servlet/DispatcherServletRegistrationBean.java
+:dispatcher-path: https://github.com/spring-projects/spring-boot/blob/2.1.x/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/web/servlet/DispatcherServletPath.java
+
+:webmvc-configurer: https://github.com/spring-projects/spring-framework/blob/5.1.x/spring-webmvc/src/main/java/org/springframework/web/servlet/config/annotation/WebMvcConfigurer.java
+:pathmatch-configurer: https://github.com/spring-projects/spring-framework/blob/5.1.x/spring-webmvc/src/main/java/org/springframework/web/servlet/config/annotation/PathMatchConfigurer.java
+:webmvc-configurer-support: https://github.com/spring-projects/spring-framework/blob/5.1.x/spring-webmvc/src/main/java/org/springframework/web/servlet/config/annotation/WebMvcConfigurationSupport.java
+:abstract-handler-mapping: https://github.com/spring-projects/spring-framework/blob/5.1.x/spring-webmvc/src/main/java/org/springframework/web/servlet/handler/AbstractHandlerMapping.java
+:patterns-condition: https://github.com/spring-projects/spring-framework/blob/5.1.x/spring-webmvc/src/main/java/org/springframework/web/servlet/mvc/condition/PatternsRequestCondition.java
+
+
+:req-mapping-handler-mapping: https://github.com/spring-projects/spring-framework/blob/5.1.x/spring-webmvc/src/main/java/org/springframework/web/servlet/mvc/method/annotation/RequestMappingHandlerMapping.java
+:url-path-helper: https://github.com/spring-projects/spring-framework/blob/5.1.x/spring-web/src/main/java/org/springframework/web/util/UrlPathHelper.java
+:actuator-webmvc-mapping: https://github.com/spring-projects/spring-boot/blob/2.1.x/spring-boot-project/spring-boot-actuator/src/main/java/org/springframework/boot/actuate/endpoint/web/servlet/WebMvcEndpointHandlerMapping.java
+:actuator-abstract-webmvc-mapping: https://github.com/spring-projects/spring-boot/blob/2.1.x/spring-boot-project/spring-boot-actuator/src/main/java/org/springframework/boot/actuate/endpoint/web/servlet/AbstractWebMvcEndpointHandlerMapping.java
 
 In the current code if the Jersey component is active (with the `jersey`
 profile) then all Spring Web MVC endpoint are not available anymore, if both are
@@ -43,9 +63,32 @@ the Jersey servlet.
 . `GET /doc/index.html` => `200 OK`
 . `GET /rest/` => `200 OK`
 
-(+) Quite simple to configure
-(+) Quite simple to maintain
-(-) Does not work with Spring Web MVC forwarding
+
+The idea is to have a filter that can forward request to the
+correct servlet. Using the standard JEE `servletContext` it is possible to ask
+for a `RequestDispatcher` based the servlet name that should receive the
+request. For that this code needs the `dispatcherServlet` registration name
+which happens to be a public constant of
+`org.springframework.boot.autoconfigure.web.servlet.DispatcherServletAutoConfiguration.DEFAULT_DISPATCHER_SERVLET_BEAN_NAME`.
+
+Then if the request URI path starts with the configured prefixes
+the request will be forwarded to the Spring `dispatcherServlet`.
+By doing so this bypasses any subsequent servlet filters.
+
+However some Spring WebMVC mechanisms don't work, like {res-rd-forward}[forward]
+because they ask the container a {res-get-rd}[`RequestDispatcher` based on the
+request], the JEE container will return a dispatcher based on url-patterns, and
+Jersey servlet is configured with `/*` so it receives all request by default.
+
+
+- icon:plus-circle[] Quite simple to configure
+- icon:plus-circle[] Quite simple to maintain
+- icon:plus-circle[] Barely rely on Spring MVC
+- icon:minus-circle[] May prevents some servlet filter to execute
+- icon:minus-circle[] Does not support all Spring Web MVC features
+like forwarding
+
+See {servlet-filter-mitigation}[`SpringMvcPrefixEnforcerFilter`] mitigation code.
 
 === Spring Web MVC configuration hack mitigation
 
@@ -70,20 +113,21 @@ The idea is that JEE servlets can have multiple url-mappings, which means it is
 should be possible to tell the container to forward HTTP request that follow
 the configured url-mappings patterns to the `DispatcherServlet`.
 
-The auto-configuration is located in `DispatcherServletAutoConfiguration`,
-and more precisely spring boot allows to  override some of the beans and
-especially the dedicated `ServletRegistrationBean` which is the Spring way
-to tell the container to register the given servlet.
+The auto-configuration is located in {dispatcher-autoconf}[`DispatcherServletAutoConfiguration`],
+and more precisely spring boot allows to override some of the beans and
+especially the `dispatcherServlet` dedicated `ServletRegistrationBean` (which
+is the Spring way to tell the container to register the given servlet).
 However it happens that Spring Boot have a specialized version of the
 `ServletRegistrationBean` named
-`org.springframework.boot.autoconfigure.web.servlet.DispatcherServletRegistrationBean`
+{dispatcher-reg-bean}[`org.springframework.boot.autoconfigure.web.servlet.DispatcherServletRegistrationBean`]
 who implements
-`org.springframework.boot.autoconfigure.web.servlet.DispatcherServletPath`.
+{dispatcher-path}[`org.springframework.boot.autoconfigure.web.servlet.DispatcherServletPath`].
 Spring Boot uses the bean with this interface to (auto) configure certain part
 of their web framework.
 
 Extending `DispatcherServletRegistrationBean` to configure url-mappings is not
-gonna work, because `setUrlMappings` and `addUrlMappings` throws unsupported
+gonna work, because {dispatcher-reg-bean}#L55-L58[`setUrlMappings`] and
+{dispatcher-reg-bean}#L60-L63[`addUrlMappings`] throws unsupported
 operation. The only options are
 
 * Either to implements another specialized
@@ -93,34 +137,48 @@ operation. The only options are
 `DispatcherServletPath`.
 
 However doing so is not enough, the Spring Web MVC infrastructure needs to be
-told how to resolve URIs, this should work with `WebMvcConfigurationSupport` and
-the companion bean `WebMvcConfigurer.configurePathMatch`. The
-`PathMatchConfigurer` is supposed to tell if a request URI path matches a
-WebMVC resource via another essential sub-component, the `UrlPathHelper`.
+told how to resolve URIs, this should work with
+{webmvc-configurer-support}[`WebMvcConfigurationSupport`] and the companion bean
+{webmvc-configurer}#L60[`WebMvcConfigurer.configurePathMatch`]. The
+{pathmatch-configurer}[`PathMatchConfigurer`] is supposed to tell if a request
+URI path matches a WebMVC resource via another essential sub-component, the
+{url-path-helper}[`UrlPathHelper`].
 
-The method of interest is `UrlPathHelper.getLookupPathForRequest` is by default
-(`alwaysUseFullPath` is `false`) configured to look for sub-path of the
-url-mappings (`UrlPathHelper.getPathWithinServletMapping`), and as such the
-returned lookup path is stripped form the first part, hence Spring Web MVC
-cannot match any of these resources against incomplete URLs.
+The method of interest is {url-path-helper}#L156-L178[`UrlPathHelper.getLookupPathForRequest`]
+is by default ({url-path-helper}#L64[`alwaysUseFullPath`] is `false`) configured
+to look for sub-path of the url-mappings
+({url-path-helper}#L171[`UrlPathHelper.getPathWithinServletMapping`]), and as
+such the returned lookup path is stripped form the first part, hence
+Spring Web MVC cannot match any of these resources against incomplete URLs.
 
 We need to configure this `UrlPathHelper` to return the full path via
-`WebMvcConfigurer.configurePathMatch`.
+{webmvc-configurer}#L60[`WebMvcConfigurer.configurePathMatch`].
 
-Unfortunately this configurer only affects the configuration of
-`RequestMappingHandlerMapping` and a few other types, but Spring Web MVC has
-many other `HandlerMapping` types. To workaround this, those
-`AbstractHandlerMapping` are injected in a bean method whose sole purpose is
-to set the `UrlPathHelper` with the needed configuration.
+Unfortunately this configurer only affects the configuration of (the reactive)
+{req-mapping-handler-mapping}[`RequestMappingHandlerMapping`] and a few
+other types, but Spring Web MVC has many other `HandlerMapping` types.
+To workaround this, the {abstract-handler-mapping}[`AbstractHandlerMapping`] are
+_post-processed_ to {abstract-handler-mapping}#L145-L157[set the `UrlPathHelper`]
+with the needed configuration.
 
-And finally this was again not enough for the `WebMvcEndpointHandlerMapping`
-because this type uses a private static final configuration non customizable
-`RequestMappingInfo.BuilderConfiguration builderConfig` with only defaults
-_helpers_, his `urlPathHelper` is `null`, this triggers the creation of a
-`PatternsRequestCondition` with new instance of `UrlPathHelper` that has the
-default configuration.
+And finally this was again not enough, for some mapping like
+{actuator-webmvc-mapping}[`WebMvcEndpointHandlerMapping`] because this parent's
+type uses a private static final configuration non customizable
+{actuator-abstract-webmvc-mapping}#L87[`RequestMappingInfo.BuilderConfiguration builderConfig`]
+with defaults _helpers_ only, its {actuator-abstract-webmvc-mapping}#L151[`urlPathHelper`
+is `null`], {actuator-abstract-webmvc-mapping}#L203-L204[this triggers] the
+{patterns-condition}#L108[creation of a`PatternsRequestCondition`] with
+a new instance of `UrlPathHelper` that has the default configuration.
 In order to bypass this behavior it is necessary to use reflection before
 `WebMvcEndpointHandlerMapping` bean post initialization and set the
 `RequestMappingInfo.BuilderConfiguration` with the `UrlPathHelper` with the
 needed configuration.
 
+- icon:plus-circle[] Seems to properly configure Spring MVC
+- icon:plus-circle[] And as such more robust
+- icon:plus-circle[] Integrates well with Servlets
+- icon:minus-circle[] Difficult to understand
+- icon:minus-circle[] Difficult to maintain
+- icon:minus-circle[] May break upon Spring MVC code changes
+
+See {spring-config-mitigation}[`SpringWebMvcHackConfiguration`] mitigation code.
