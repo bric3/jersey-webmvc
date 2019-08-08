@@ -43,4 +43,84 @@ the Jersey servlet.
 . `GET /doc/index.html` => `200 OK`
 . `GET /rest/` => `200 OK`
 
+(+) Quite simple to configure
+(+) Quite simple to maintain
+(-) Does not work with Spring Web MVC forwarding
+
+=== Spring Web MVC configuration hack mitigation
+
+Is it possible to configure Spring Boot to do the right thing ?
+Turns out, yes it's possible.
+
+.with `jersey` and `filter-mitigation` profiles
+. `GET /jaxrs` => `200 OK`
+. `GET /actuator/status` => `200 OK`
+. `GET /favicon.ico` => `200 OK`
+. `GET /doc/` => `200 OK`
+. `GET /doc/index.html` => `200 OK`
+. `GET /rest/` => `200 OK`
+
+
+So the Spring's `DispatcherServlet` servlet url-mapping is hardwired by
+Spring Boot to `spring.mvc.servlet.path`, which in our case is `/`.
+And the jersey servlet url-mapping is `/*` which means that the Jersey servlet
+is configured to receive all request.
+
+The idea is that JEE servlets can have multiple url-mappings, which means it is
+should be possible to tell the container to forward HTTP request that follow
+the configured url-mappings patterns to the `DispatcherServlet`.
+
+The auto-configuration is located in `DispatcherServletAutoConfiguration`,
+and more precisely spring boot allows to  override some of the beans and
+especially the dedicated `ServletRegistrationBean` which is the Spring way
+to tell the container to register the given servlet.
+However it happens that Spring Boot have a specialized version of the
+`ServletRegistrationBean` named
+`org.springframework.boot.autoconfigure.web.servlet.DispatcherServletRegistrationBean`
+who implements
+`org.springframework.boot.autoconfigure.web.servlet.DispatcherServletPath`.
+Spring Boot uses the bean with this interface to (auto) configure certain part
+of their web framework.
+
+Extending `DispatcherServletRegistrationBean` to configure url-mappings is not
+gonna work, because `setUrlMappings` and `addUrlMappings` throws unsupported
+operation. The only options are
+
+* Either to implements another specialized
+`ServletRegistrationBean` that allows to configure url-mappings for the
+`dispatcherServlet` and of course implements `DispatcherServletPath`.
+* Or register two beans, the `ServletRegistrationBean` and the
+`DispatcherServletPath`.
+
+However doing so is not enough, the Spring Web MVC infrastructure needs to be
+told how to resolve URIs, this should work with `WebMvcConfigurationSupport` and
+the companion bean `WebMvcConfigurer.configurePathMatch`. The
+`PathMatchConfigurer` is supposed to tell if a request URI path matches a
+WebMVC resource via another essential sub-component, the `UrlPathHelper`.
+
+The method of interest is `UrlPathHelper.getLookupPathForRequest` is by default
+(`alwaysUseFullPath` is `false`) configured to look for sub-path of the
+url-mappings (`UrlPathHelper.getPathWithinServletMapping`), and as such the
+returned lookup path is stripped form the first part, hence Spring Web MVC
+cannot match any of these resources against incomplete URLs.
+
+We need to configure this `UrlPathHelper` to return the full path via
+`WebMvcConfigurer.configurePathMatch`.
+
+Unfortunately this configurer only affects the configuration of
+`RequestMappingHandlerMapping` and a few other types, but Spring Web MVC has
+many other `HandlerMapping` types. To workaround this, those
+`AbstractHandlerMapping` are injected in a bean method whose sole purpose is
+to set the `UrlPathHelper` with the needed configuration.
+
+And finally this was again not enough for the `WebMvcEndpointHandlerMapping`
+because this type uses a private static final configuration non customizable
+`RequestMappingInfo.BuilderConfiguration builderConfig` with only defaults
+_helpers_, his `urlPathHelper` is `null`, this triggers the creation of a
+`PatternsRequestCondition` with new instance of `UrlPathHelper` that has the
+default configuration.
+In order to bypass this behavior it is necessary to use reflection before
+`WebMvcEndpointHandlerMapping` bean post initialization and set the
+`RequestMappingInfo.BuilderConfiguration` with the `UrlPathHelper` with the
+needed configuration.
 
