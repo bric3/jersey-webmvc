@@ -16,6 +16,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.Ordered;
+import org.springframework.util.Assert;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.web.servlet.DispatcherServlet;
 import org.springframework.web.servlet.config.annotation.PathMatchConfigurer;
@@ -50,6 +51,7 @@ public class DispatcherConfiguration {
                     ReflectionUtils.makeAccessible(field);
                     final RequestMappingInfo.BuilderConfiguration builderConfiguration =
                             (RequestMappingInfo.BuilderConfiguration) ReflectionUtils.getField(field, null);
+                    Assert.notNull(builderConfiguration, "This code expects this '" + field + "' to be not null");
                     builderConfiguration.setUrlPathHelper(urlPathHelper());
                 },
                 field -> Objects.equals("builderConfig", field.getName()));
@@ -105,6 +107,7 @@ public class DispatcherConfiguration {
         return () -> path;
     }
 
+    @SuppressWarnings("ConfigurationProperties")
     @ConfigurationProperties("spring.mvc")
     public static class WebMvcEnforcedPrefixesProperties {
         private Set<String> urlMappings;
