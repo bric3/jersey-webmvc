@@ -1,5 +1,6 @@
 package com.github.bric3.jerseywebmvc.spring_configuration_mitigation;
 
+import com.github.bric3.jerseywebmvc.spring_configuration_mitigation.DispatcherConfiguration.WebMvcEnforcedPrefixesProperties;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.actuate.endpoint.web.servlet.WebMvcEndpointHandlerMapping;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
@@ -8,6 +9,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.web.servlet.DispatcherServletAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.servlet.DispatcherServletPath;
 import org.springframework.boot.autoconfigure.web.servlet.WebMvcProperties;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -20,13 +22,13 @@ import org.springframework.web.servlet.config.annotation.PathMatchConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.handler.AbstractHandlerMapping;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
-import org.springframework.web.servlet.mvc.method.RequestMappingInfo.BuilderConfiguration;
 import org.springframework.web.util.UrlPathHelper;
 
 import javax.servlet.MultipartConfigElement;
 import javax.servlet.ServletRegistration;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import static org.springframework.boot.autoconfigure.web.servlet.DispatcherServletAutoConfiguration.DEFAULT_DISPATCHER_SERVLET_BEAN_NAME;
 
@@ -34,7 +36,7 @@ import static org.springframework.boot.autoconfigure.web.servlet.DispatcherServl
 @AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE)
 @AutoConfigureBefore(DispatcherServletAutoConfiguration.class)
 @ConditionalOnClass(ServletRegistration.class)
-@EnableConfigurationProperties(WebMvcProperties.class)
+@EnableConfigurationProperties({WebMvcProperties.class, WebMvcEnforcedPrefixesProperties.class})
 @Profile("web-mvc-config-hack-mitigation")
 public class DispatcherConfiguration {
     private final WebMvcProperties webMvcProperties;
@@ -72,8 +74,7 @@ public class DispatcherConfiguration {
 
     @Bean
     Object handlerMappingCustomizer(List<AbstractHandlerMapping> handlerMappings) {
-        final UrlPathHelper urlPathHelper = urlPathHelper();
-        handlerMappings.forEach(handlerMapping -> handlerMapping.setUrlPathHelper(urlPathHelper));
+        handlerMappings.forEach(handlerMapping -> handlerMapping.setUrlPathHelper(urlPathHelper()));
         return true;
     }
 
@@ -84,14 +85,12 @@ public class DispatcherConfiguration {
     }
 
     @Bean(name = DispatcherServletAutoConfiguration.DEFAULT_DISPATCHER_SERVLET_REGISTRATION_BEAN_NAME)
-    public ServletRegistrationBean<DispatcherServlet> dispatcherServletRegistration(DispatcherServlet dispatcherServlet) {
+    ServletRegistrationBean<DispatcherServlet> dispatcherServletRegistration(DispatcherServlet dispatcherServlet,
+                                                                             WebMvcEnforcedPrefixesProperties webMvcEnforcedPrefixesProperties) {
         ServletRegistrationBean<DispatcherServlet> registration =
                 new ServletRegistrationBean<>(dispatcherServlet,
-                                              "/rest/*",
-                                              "/doc/*",
-                                              "/actuator/*",
-                                              "/error/*",
-                                              "/favicon.ico");
+                                              webMvcEnforcedPrefixesProperties.getUrlMappings()
+                                                                              .toArray(String[]::new));
         registration.setName(DEFAULT_DISPATCHER_SERVLET_BEAN_NAME);
         registration.setLoadOnStartup(this.webMvcProperties.getServlet().getLoadOnStartup());
         if (this.multipartConfig != null) {
@@ -104,5 +103,18 @@ public class DispatcherConfiguration {
     DispatcherServletPath dispatcherServletPath() {
         final String path = this.webMvcProperties.getServlet().getPath();
         return () -> path;
+    }
+
+    @ConfigurationProperties("spring.mvc")
+    public static class WebMvcEnforcedPrefixesProperties {
+        private Set<String> urlMappings;
+
+        public Set<String> getUrlMappings() {
+            return urlMappings;
+        }
+
+        public void setUrlMappings(Set<String> urlMappings) {
+            this.urlMappings = urlMappings;
+        }
     }
 }

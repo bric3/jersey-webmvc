@@ -5,7 +5,12 @@ spring:
       - /doc
       - /rest
       - /favicon.ico
-
+    url-mappings:
+      - "/rest/*"
+      - "/doc/*"
+      - "/actuator/*"
+      - "/error/*"
+      - "/favicon.ico"
 
 management:
   endpoint:
