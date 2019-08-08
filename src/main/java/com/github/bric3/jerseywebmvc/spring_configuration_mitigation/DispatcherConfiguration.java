@@ -5,7 +5,6 @@ import org.springframework.boot.actuate.endpoint.web.servlet.WebMvcEndpointHandl
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.http.HttpProperties;
 import org.springframework.boot.autoconfigure.web.servlet.DispatcherServletAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.servlet.DispatcherServletPath;
 import org.springframework.boot.autoconfigure.web.servlet.WebMvcProperties;
@@ -26,7 +25,6 @@ import org.springframework.web.util.UrlPathHelper;
 
 import javax.servlet.MultipartConfigElement;
 import javax.servlet.ServletRegistration;
-import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
@@ -84,15 +82,14 @@ public class DispatcherConfiguration {
     }
 
     @Bean(name = DispatcherServletAutoConfiguration.DEFAULT_DISPATCHER_SERVLET_REGISTRATION_BEAN_NAME)
-    public SpringMvcDispatcherServletRegistrationBean dispatcherServletRegistration(DispatcherServlet dispatcherServlet) {
-        SpringMvcDispatcherServletRegistrationBean registration =
-                new SpringMvcDispatcherServletRegistrationBean(dispatcherServlet,
-                                                               this.webMvcProperties.getServlet().getPath(),
-                                                               "/rest/*",
-                                                               "/doc/*",
-                                                               "/actuator/*",
-                                                               "/error/*",
-                                                               "/favicon.ico");
+    public ServletRegistrationBean<DispatcherServlet> dispatcherServletRegistration(DispatcherServlet dispatcherServlet) {
+        ServletRegistrationBean<DispatcherServlet> registration =
+                new ServletRegistrationBean<>(dispatcherServlet,
+                                              "/rest/*",
+                                              "/doc/*",
+                                              "/actuator/*",
+                                              "/error/*",
+                                              "/favicon.ico");
         registration.setName(DEFAULT_DISPATCHER_SERVLET_BEAN_NAME);
         registration.setLoadOnStartup(this.webMvcProperties.getServlet().getLoadOnStartup());
         if (this.multipartConfig != null) {
@@ -101,40 +98,9 @@ public class DispatcherConfiguration {
         return registration;
     }
 
-    static class SpringMvcDispatcherServletRegistrationBean extends ServletRegistrationBean<DispatcherServlet>
-            implements DispatcherServletPath {
-
-        private final String path;
-
-        /**
-         * Create a new {@link SpringMvcDispatcherServletRegistrationBean} instance for the given
-         * servlet and dispatcherServletPath.
-         *
-         * @param servlet                      the dispatcher servlet
-         * @param dispatcherServletPath        the dispatcher servlet dispatcherServletPath
-         * @param dispatcherServletUrlMappings the dispatcherServlet enforced paths
-         */
-        SpringMvcDispatcherServletRegistrationBean(DispatcherServlet servlet,
-                                                   String dispatcherServletPath,
-                                                   String... dispatcherServletUrlMappings) {
-            super(servlet, dispatcherServletPath);
-            this.path = dispatcherServletPath;
-            super.addUrlMappings(dispatcherServletUrlMappings);
-        }
-
-        @Override
-        public String getPath() {
-            return path;
-        }
-
-        @Override
-        public void setUrlMappings(Collection<String> urlMappings) {
-            throw new UnsupportedOperationException("URL Mapping cannot be changed on a DispatcherServlet registration");
-        }
-
-        @Override
-        public void addUrlMappings(String... urlMappings) {
-            throw new UnsupportedOperationException("URL Mapping cannot be changed on a DispatcherServlet registration");
-        }
+    @Bean
+    DispatcherServletPath dispatcherServletPath() {
+        final String path = this.webMvcProperties.getServlet().getPath();
+        return () -> path;
     }
 }
