@@ -42,13 +42,15 @@ public class DispatcherConfiguration {
 
     static {
         // has to be done before WebMvcEndpointHandlerMapping.afterPropertiesSet
-        ReflectionUtils.doWithFields(WebMvcEndpointHandlerMapping.class,
-                                     field -> {
-                                         ReflectionUtils.makeAccessible(field);
-                                         final RequestMappingInfo.BuilderConfiguration builderConfiguration = (BuilderConfiguration) ReflectionUtils.getField(field, null);
-                                         builderConfiguration.setUrlPathHelper(urlPathHelper());
-                                     },
-                                     field -> Objects.equals("builderConfig", field.getName()));
+        ReflectionUtils.doWithFields(
+                WebMvcEndpointHandlerMapping.class,
+                field -> {
+                    ReflectionUtils.makeAccessible(field);
+                    final RequestMappingInfo.BuilderConfiguration builderConfiguration =
+                            (RequestMappingInfo.BuilderConfiguration) ReflectionUtils.getField(field, null);
+                    builderConfiguration.setUrlPathHelper(urlPathHelper());
+                },
+                field -> Objects.equals("builderConfig", field.getName()));
     }
 
     public DispatcherConfiguration(WebMvcProperties webMvcProperties,
