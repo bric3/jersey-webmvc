@@ -1,4 +1,4 @@
-= Demo the unability of spring Boot to make Jersey and Spring WebMVC
+= Workaround Spring Boot unability to make Jersey and Spring MVC co-exist
 :icons: font
 :url-sb-17523: https://github.com/spring-projects/spring-boot/issues/17523
 :servlet-filter-mitigation: https://github.com/bric3/jersey-webmvc/blob/master/src/main/java/com/github/bric3/jerseywebmvc/servlet_filter_mitigation/SpringMvcPrefixEnforcerFilter.java
@@ -45,6 +45,16 @@ Run tests in `com.github.bric3.jerseywebmvc.JerseyWebmvcApplicationTests`.
 
 See {url-sb-17523}[spring-projects/spring-boot#17523].
 
+
+While having a two technology to expose endpoints may seem brittle, this is
+quite useful if :
+
+* One want to expose a few static resources like documentation alongside
+JAXRS / Jersey endpoints.
+* One want to have actuator endpoints available from the root path.
+* One want to migrate one endpoint at a time from - to Spring WebMVC.
+
+The following workaround covers part that Spring Boot does not.
 
 == Workarounds
 
