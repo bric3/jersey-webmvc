@@ -3,7 +3,6 @@ package com.github.bric3.jerseywebmvc.servlet_filter_mitigation;
 import org.springframework.boot.autoconfigure.web.servlet.DispatcherServletAutoConfiguration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Profile;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import javax.servlet.DispatcherType;
@@ -20,6 +19,7 @@ import java.io.IOException;
 import java.util.Set;
 
 @Component
+@SuppressWarnings("ConfigurationProperties")
 @ConfigurationProperties("spring.mvc")
 @Profile("servlet-filter-mitigation")
 // https://github.com/spring-projects/spring-boot/issues/17523
