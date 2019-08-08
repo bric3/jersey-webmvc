@@ -1,6 +1,6 @@
 package com.github.bric3.jerseywebmvc.spring_configuration_mitigation;
 
-import com.github.bric3.jerseywebmvc.spring_configuration_mitigation.DispatcherConfiguration.WebMvcEnforcedPrefixesProperties;
+import com.github.bric3.jerseywebmvc.spring_configuration_mitigation.SpringWebMvcHackConfiguration.WebMvcEnforcedPrefixesProperties;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.actuate.endpoint.web.servlet.WebMvcEndpointHandlerMapping;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
@@ -39,7 +39,7 @@ import static org.springframework.boot.autoconfigure.web.servlet.DispatcherServl
 @ConditionalOnClass(ServletRegistration.class)
 @EnableConfigurationProperties({WebMvcProperties.class, WebMvcEnforcedPrefixesProperties.class})
 @Profile("web-mvc-config-hack-mitigation")
-public class DispatcherConfiguration {
+public class SpringWebMvcHackConfiguration {
     private final WebMvcProperties webMvcProperties;
     private final MultipartConfigElement multipartConfig;
 
@@ -57,8 +57,8 @@ public class DispatcherConfiguration {
                 field -> Objects.equals("builderConfig", field.getName()));
     }
 
-    public DispatcherConfiguration(WebMvcProperties webMvcProperties,
-                                   ObjectProvider<MultipartConfigElement> multipartConfigProvider) {
+    public SpringWebMvcHackConfiguration(WebMvcProperties webMvcProperties,
+                                         ObjectProvider<MultipartConfigElement> multipartConfigProvider) {
         this.webMvcProperties = webMvcProperties;
         this.multipartConfig = multipartConfigProvider.getIfAvailable();
     }
